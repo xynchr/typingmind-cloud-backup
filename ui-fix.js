@@ -1,44 +1,43 @@
 (function() {
-    function nukeUI() {
-        // 1. Destroy the KB and Teams buttons by searching for their exact text
+    // UPDATED: Added ":not([role='button'], [aria-haspopup='true'])" 
+    // This ensures we don't accidentally hide the 3-dot menu triggers
+    const style = document.createElement('style');
+    style.innerHTML = `
+        :is([data-testid*="knowledge-base"], [data-testid*="teams-button"], 
+           [data-testid="workspace-teams-button"], [title="Knowledge Base"], 
+           [aria-label="Knowledge Base"], [title="Teams"], [title="TypingMind Teams"], 
+           [aria-label="Data Lost Warning"], [title="Data Lost Warning"]):not([role="button"]):not([aria-haspopup="true"]) {
+            display: none !important;
+        }
+    `;
+    document.head.appendChild(style);
+
+    function cleanUI() {
         const allElements = document.querySelectorAll('span, div, p');
         allElements.forEach(el => {
-            // Safety: Never hide anything inside your actual chat window
             if (el.closest('[data-testid="chat-message"]')) return;
 
+            // EXCLUSION: Do not touch anything that looks like a menu button
+            if (el.closest('[role="button"]') || el.getAttribute('aria-haspopup') === 'true') return;
+
             const text = el.textContent.trim();
-            // Look for the exact text on those buttons
-            if (text === 'KB' || text === 'Teams' || text === 'Knowledge Base') {
-                // Find the clickable button that wraps the text and destroy it
+            if (['KB', 'Teams', 'Knowledge Base'].includes(text)) {
                 const wrapper = el.closest('button, [role="button"], a, li');
                 if (wrapper) wrapper.style.setProperty('display', 'none', 'important');
-                el.style.setProperty('display', 'none', 'important');
             }
         });
 
-        // 2. Destroy the tiny red warning triangle on the avatar
-        // It's a red icon using "absolute" positioning to hover over your profile picture
-        const allIcons = document.querySelectorAll('[class*="text-red"],[class*="bg-red"], [class*="fill-red"], svg');
+        // Keep the red triangle logic, but ensure we don't kill menu icons
+        const allIcons = document.querySelectorAll('[class*="text-red"], [class*="bg-red"]');
         allIcons.forEach(el => {
-            if (el.closest('[data-testid="chat-message"]')) return;
-            
+            if (el.closest('[role="menu"]') || el.closest('[role="button"]')) return;
             const isAbsolute = window.getComputedStyle(el).position === 'absolute' || el.classList.contains('absolute');
-            const isRed = el.classList.toString().includes('red') || el.innerHTML.includes('red') || window.getComputedStyle(el).color.includes('rgb(239'); // Tailwind red
-            
-            if (isAbsolute && isRed) {
+            if (isAbsolute) {
                 el.style.setProperty('display', 'none', 'important');
-            }
-            // Check its parent wrapper just in case
-            if (el.parentElement) {
-                const parentAbsolute = window.getComputedStyle(el.parentElement).position === 'absolute' || el.parentElement.classList.contains('absolute');
-                if (parentAbsolute && isRed) {
-                    el.parentElement.style.setProperty('display', 'none', 'important');
-                }
             }
         });
     }
 
-    // Run immediately, and run every time the app loads a new menu
     nukeUI();
     const observer = new MutationObserver(() => nukeUI());
     observer.observe(document.body, { childList: true, subtree: true });
